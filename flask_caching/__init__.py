@@ -259,7 +259,7 @@ class Cache(object):
         return self.cache.get_dict(*args, **kwargs)
 
     def cached(self, timeout=None, key_prefix='view/%s', unless=None,
-               forced_update=None):
+               forced_update=None, should_store=None):
         """Decorator. Use this to cache a function. By default the cache key
         is `view/request.path`. You are able to use this decorator with any
         function by changing the `key_prefix`. If the token `%s` is located
@@ -322,6 +322,11 @@ class Cache(object):
                               cache value will be updated regardless cache
                               is expired or not. Useful for background
                               renewal of cached functions.
+
+        :param should_store: Default None. Callable which accepts the return value of the
+                              cached decorated function. If this callable is defined and returns True
+                              the value is stored in cache, otherwise it is not.
+                              This parameter is ignored when used with `unless`.
         """
 
         def decorator(f):
@@ -347,6 +352,8 @@ class Cache(object):
 
                 if rv is None:
                     rv = f(*args, **kwargs)
+                    if callable(should_store) and not should_store(rv):
+                        return rv
                     try:
                         self.cache.set(
                             cache_key, rv,
